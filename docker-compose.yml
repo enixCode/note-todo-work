@@ -1,0 +1,12 @@
+services:
+  notes-api:
+    build: .
+    container_name: note-todo-work
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - notes-data:/data
+
+volumes:
+  notes-data:

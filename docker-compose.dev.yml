@@ -1,0 +1,4 @@
+services:
+  notes-api:
+    ports:
+      - "8090:8080"

@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#141210">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <title>Notes Review</title>
+  <style>
+    :root {
+      --bg-deep: #141210;
+      --bg-card: #1c1a17;
+      --bg-surface: #232019;
+      --bg-input: #0e0d0b;
+      --amber: #d4a04a;
+      --amber-dim: #a07832;
+      --amber-glow: rgba(212, 160, 74, 0.12);
+      --amber-bright: #f0c060;
+      --red: #c45040;
+      --red-dim: #8a3028;
+      --green: #5a9a5a;
+      --text: #c8c0b4;
+      --text-dim: #7a7368;
+      --text-bright: #ece4d8;
+      --border: #2a2722;
+      --font-display: 'Playfair Display', Georgia, serif;
+      --font-body: 'Source Sans 3', 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html { height: 100%; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-deep);
+      color: var(--text);
+      min-height: 100%;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    /* Grain overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 128px 128px;
+    }
+
+    /* ---- MOBILE-FIRST SHELL ---- */
+    .shell {
+      width: 100%;
+      padding: 16px 16px calc(80px + var(--safe-bottom));
+      padding-top: calc(16px + var(--safe-top));
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 20px;
+      animation: fadeSlide 0.5s ease-out;
+    }
+    .header h1 {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.5rem;
+      color: var(--text-bright);
+      letter-spacing: -0.02em;
+    }
+    .header .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 10px var(--amber), 0 0 4px var(--amber-glow);
+      flex-shrink: 0;
+      position: relative;
+      top: -2px;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      animation: fadeSlide 0.5s ease-out 0.05s both;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tab {
+      padding: 12px 20px 14px;
+      border: none;
+      background: none;
+      color: var(--text-dim);
+      font-family: var(--font-body);
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      position: relative;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+      white-space: nowrap;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+    }
+    .tab::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--amber);
+      transform: scaleX(0);
+      transition: transform 0.25s ease;
+    }
+    .tab.active { color: var(--amber); }
+    .tab.active::after { transform: scaleX(1); }
+    .badge {
+      background: var(--red);
+      color: #fff;
+      border-radius: 8px;
+      padding: 2px 7px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      margin-left: 6px;
+    }
+
+    /* Cards - touch optimized */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      animation: cardIn 0.35s ease-out both;
+      min-height: 44px;
+    }
+    .card:active {
+      background: var(--bg-surface);
+    }
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 500;
+      color: var(--text-bright);
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+    .card-meta {
+      font-size: 0.76rem;
+      color: var(--text-dim);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .card-meta span::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      margin-right: 5px;
+      position: relative;
+      top: -2px;
+    }
+    .card-meta span:first-child::before { display: none; }
+    .card-tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+    .tag {
+      display: inline-block;
+      background: var(--amber-glow);
+      color: var(--amber);
+      padding: 3px 10px;
+      border-radius: 3px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+    }
+    .overdue { border-left: 3px solid var(--red); }
+    .overdue .card-title::after {
+      content: 'due';
+      font-family: var(--font-body);
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--red);
+      margin-left: 10px;
+      position: relative;
+      top: -2px;
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--text-dim);
+      padding: 48px 24px;
+      font-style: italic;
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .loading {
+      text-align: center;
+      color: var(--text-dim);
+      padding: 40px;
+      font-size: 0.85rem;
+    }
+
+    /* ---- DETAIL VIEW ---- */
+    .detail { display: none; }
+    .detail.active {
+      display: block;
+      animation: fadeSlide 0.25s ease-out;
+    }
+    .back {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      padding: 8px 0;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      transition: color 0.2s;
+    }
+    .back:active { color: var(--amber); }
+    .back svg {
+      width: 16px;
+      height: 16px;
+      margin-right: 6px;
+      flex-shrink: 0;
+    }
+    .detail-header {
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .detail-header h1 {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-bright);
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+      word-break: break-word;
+    }
+    .detail-header .card-meta {
+      margin-bottom: 6px;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .detail-header .card-meta span::before { display: none; }
+    .detail-header .card-tags { margin-top: 8px; }
+
+    /* Markdown body - mobile optimized */
+    .md-body {
+      padding: 4px 0 20px;
+      line-height: 1.8;
+      font-size: 0.92rem;
+      color: var(--text);
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    .md-body h1, .md-body h2, .md-body h3, .md-body h4 {
+      font-family: var(--font-display);
+      color: var(--text-bright);
+      margin: 1.4em 0 0.5em;
+      line-height: 1.3;
+    }
+    .md-body h1 { font-size: 1.4rem; }
+    .md-body h2 {
+      font-size: 1.15rem;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    .md-body h3 { font-size: 1rem; color: var(--amber); }
+    .md-body h4 { font-size: 0.92rem; }
+    .md-body p { margin: 0.7em 0; }
+    .md-body a {
+      color: var(--amber);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      word-break: break-all;
+    }
+    .md-body strong { color: var(--text-bright); font-weight: 600; }
+    .md-body em { font-style: italic; }
+    .md-body blockquote {
+      border-left: 2px solid var(--amber-dim);
+      padding: 4px 0 4px 14px;
+      margin: 1em 0;
+      color: var(--text-dim);
+      font-style: italic;
+    }
+    .md-body ul, .md-body ol {
+      padding-left: 22px;
+      margin: 0.7em 0;
+    }
+    .md-body li { margin: 0.3em 0; }
+    .md-body li::marker { color: var(--amber-dim); }
+    .md-body code {
+      font-family: var(--font-mono);
+      font-size: 0.78em;
+      background: var(--bg-input);
+      color: var(--amber);
+      padding: 2px 6px;
+      border-radius: 3px;
+      word-break: break-all;
+    }
+    .md-body pre {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      margin: 1em -4px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .md-body pre code {
+      background: none;
+      padding: 0;
+      color: var(--text);
+      font-size: 0.78rem;
+      line-height: 1.6;
+      word-break: normal;
+    }
+    .md-body hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1.5em 0;
+    }
+    .md-body img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+      margin: 1em 0;
+    }
+    .md-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1em -4px;
+      font-size: 0.82rem;
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .md-body th, .md-body td {
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      text-align: left;
+      white-space: nowrap;
+    }
+    .md-body th {
+      background: var(--bg-surface);
+      color: var(--text-bright);
+      font-weight: 600;
+    }
+
+    /* Action buttons - stacked on mobile */
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .btn {
+      padding: 12px 18px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.02em;
+      background: var(--bg-card);
+      color: var(--text);
+      min-height: 48px;
+      text-align: center;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-review {
+      background: var(--amber-glow);
+      border-color: var(--amber-dim);
+      color: var(--amber);
+      font-weight: 600;
+    }
+    .btn-review:active {
+      background: var(--amber);
+      color: var(--bg-deep);
+    }
+    .btn-danger { color: var(--red); border-color: var(--red-dim); }
+    .btn-danger:active { background: var(--red); color: #fff; }
+
+    /* FAB */
+    .fab {
+      position: fixed;
+      bottom: calc(20px + var(--safe-bottom));
+      right: 20px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--amber);
+      color: var(--bg-deep);
+      border: none;
+      font-size: 1.8rem;
+      font-weight: 300;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(212, 160, 74, 0.35);
+      transition: transform 0.15s;
+      z-index: 5;
+      line-height: 1;
+    }
+    .fab:active { transform: scale(0.92); }
+
+    /* Modal - full-screen on mobile */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 9, 8, 0.85);
+      backdrop-filter: blur(4px);
+      z-index: 10;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px 16px 0 0;
+      padding: 24px 20px calc(20px + var(--safe-bottom));
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      animation: slideUp 0.3s ease-out;
+    }
+    .modal-handle {
+      width: 36px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 0 auto 16px;
+    }
+    .modal h2 {
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: 1.15rem;
+      color: var(--text-bright);
+      margin-bottom: 18px;
+    }
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+    .field input, .field textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-input);
+      color: var(--text-bright);
+      font-family: var(--font-body);
+      font-size: 16px; /* Prevents iOS zoom */
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .field input:focus, .field textarea:focus {
+      outline: none;
+      border-color: var(--amber-dim);
+    }
+    .field textarea {
+      min-height: 160px;
+      resize: vertical;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 18px;
+    }
+    .modal-actions .btn { flex: 1; }
+
+    /* Animations */
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ---- TABLET+ (min 600px) ---- */
+    @media (min-width: 600px) {
+      .shell {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 28px 24px 100px;
+      }
+      .header h1 { font-size: 1.7rem; }
+      .detail-header h1 { font-size: 1.8rem; }
+      .detail-header .card-meta {
+        flex-direction: row;
+        gap: 16px;
+      }
+      .detail-header .card-meta span::before { display: inline-block; }
+      .detail-header .card-meta span:first-child::before { display: none; }
+      .card {
+        padding: 18px 20px;
+      }
+      .card:hover {
+        border-color: var(--amber-dim);
+        background: var(--bg-surface);
+        transform: translateX(3px);
+      }
+      .actions {
+        flex-direction: row;
+      }
+      .btn { min-height: 44px; padding: 10px 20px; }
+      .btn:hover { border-color: var(--text-dim); }
+      .btn-review:hover {
+        background: var(--amber);
+        color: var(--bg-deep);
+        border-color: var(--amber);
+      }
+      .btn-danger:hover { background: var(--red); color: #fff; border-color: var(--red); }
+      .modal {
+        border-radius: 10px;
+        max-width: 520px;
+        margin-bottom: 40px;
+        padding: 28px;
+      }
+      .modal-handle { display: none; }
+      .modal-overlay { align-items: center; }
+      .fab {
+        width: 52px;
+        height: 52px;
+        bottom: 28px;
+        right: 28px;
+      }
+      .fab:hover {
+        transform: scale(1.08);
+        box-shadow: 0 6px 28px rgba(212, 160, 74, 0.45);
+      }
+      .md-body pre { margin: 1em 0; }
+      .md-body table { margin: 1em 0; }
+    }
+
+    /* ---- DESKTOP (min 900px) ---- */
+    @media (min-width: 900px) {
+      .shell {
+        max-width: 720px;
+        padding: 40px 32px 100px;
+      }
+      .header { margin-bottom: 32px; }
+      .header h1 { font-size: 1.9rem; }
+      .md-body { font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- List view -->
+  <div id="list-view">
+    <div class="header">
+      <h1>Notes</h1>
+      <span class="dot"></span>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="pending" onclick="switchTab('pending')">
+        Pending <span id="pending-badge" class="badge" style="display:none">0</span>
+      </button>
+      <button class="tab" data-tab="all" onclick="switchTab('all')">All</button>
+    </div>
+    <div id="notes-list"></div>
+  </div>
+
+  <!-- Detail view -->
+  <div id="detail-view" class="detail">
+    <button class="back" onclick="showList()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      Back
+    </button>
+    <div class="detail-header">
+      <h1 id="detail-title"></h1>
+      <div class="card-meta" id="detail-meta"></div>
+      <div class="card-tags" id="detail-tags"></div>
+    </div>
+    <div class="md-body" id="detail-body"></div>
+    <div class="actions">
+      <button class="btn btn-review" onclick="reviewNote()">Mark Reviewed</button>
+      <button class="btn" onclick="editNote()">Edit</button>
+      <button class="btn btn-danger" onclick="deleteNote()">Delete</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fab-add" onclick="openModal()">+</button>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="modal-title">New Note</h2>
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="input-title" placeholder="Note title">
+    </div>
+    <div class="field">
+      <label>Tags</label>
+      <input type="text" id="input-tags" placeholder="comma separated">
+    </div>
+    <div class="field">
+      <label>Body (markdown)</label>
+      <textarea id="input-body" placeholder="# Your content here..."></textarea>
+    </div>
+    <div class="field">
+      <label>Review in (days)</label>
+      <input type="number" id="input-days" value="7" min="0" inputmode="numeric">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-review" onclick="saveNote()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = '';
+  let currentTab = 'pending';
+  let currentNote = null;
+  let editingId = null;
+
+  marked.setOptions({ breaks: true, gfm: true });
+
+  function getApiKey() {
+    return localStorage.getItem('api_key') || '';
+  }
+
+  function promptApiKey() {
+    const key = prompt('Enter API key:');
+    if (key) {
+      localStorage.setItem('api_key', key);
+      location.reload();
+    }
+  }
+
+  async function api(path, opts = {}) {
+    const key = getApiKey();
+    const headers = { 'Content-Type': 'application/json', ...opts.headers };
+    if (key) headers['X-Api-Key'] = key;
+
+    const res = await fetch(API + path, {
+      ...opts,
+      headers,
+      cache: 'no-store'
+    });
+
+    if (res.status === 401) {
+      localStorage.removeItem('api_key');
+      promptApiKey();
+      return {};
+    }
+
+    return res.json();
+  }
+
+  async function loadNotes() {
+    const container = document.getElementById('notes-list');
+    container.innerHTML = '<div class="loading">loading...</div>';
+
+    let data;
+    if (currentTab === 'pending') {
+      data = await api('/notes/review/pending');
+    } else {
+      data = await api('/notes');
+    }
+
+    const notes = Array.isArray(data.notes) ? data.notes : Object.values(data.notes || {});
+
+    if (currentTab === 'all') {
+      const pending = await api('/notes/review/pending');
+      const pCount = Array.isArray(pending.notes) ? pending.notes.length : Object.keys(pending.notes || {}).length;
+      updateBadge(pCount);
+    } else {
+      updateBadge(notes.length);
+    }
+
+    if (notes.length === 0) {
+      container.innerHTML = '<div class="empty">' +
+        (currentTab === 'pending' ? 'Nothing to review -<br>all caught up.' : 'No notes yet.<br>Tap + to create one.') +
+        '</div>';
+      return;
+    }
+
+    container.innerHTML = notes.map((n, i) => {
+      const isOverdue = n.next_review && n.next_review <= new Date().toISOString().slice(0, 10);
+      return '<div class="card ' + (isOverdue ? 'overdue' : '') + '" style="animation-delay:' + (i * 0.04) + 's" onclick="openNote(\'' + n.id + '\')">' +
+        '<div class="card-title">' + esc(n.title || n.id) + '</div>' +
+        '<div class="card-meta">' +
+          '<span>' + (n.next_review || '-') + '</span>' +
+          '<span>reviewed ' + (n.last_review || '-') + '</span>' +
+        '</div>' +
+        (n.tags ? '<div class="card-tags">' + n.tags.split(',').map(t => '<span class="tag">' + esc(t.trim()) + '</span>').join('') + '</div>' : '') +
+      '</div>';
+    }).join('');
+  }
+
+  function updateBadge(count) {
+    const badge = document.getElementById('pending-badge');
+    if (count > 0) {
+      badge.textContent = count;
+      badge.style.display = 'inline';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    loadNotes();
+  }
+
+  async function openNote(id) {
+    const data = await api('/notes/' + id);
+    currentNote = { ...data.note, body: data.body };
+
+    document.getElementById('detail-title').textContent = data.note.title || id;
+    document.getElementById('detail-meta').innerHTML =
+      '<span>created ' + (data.note.created || '-') + '</span>' +
+      '<span>reviewed ' + (data.note.last_review || '-') + '</span>' +
+      '<span>next ' + (data.note.next_review || '-') + '</span>';
+    document.getElementById('detail-tags').innerHTML = data.note.tags
+      ? data.note.tags.split(',').map(t => '<span class="tag">' + esc(t.trim()) + '</span>').join('')
+      : '';
+
+    const body = data.body || '';
+    document.getElementById('detail-body').innerHTML = body ? marked.parse(body) : '<em style="color:var(--text-dim)">empty note</em>';
+
+    document.getElementById('list-view').style.display = 'none';
+    document.getElementById('detail-view').classList.add('active');
+    document.getElementById('fab-add').style.display = 'none';
+    window.scrollTo(0, 0);
+  }
+
+  function showList() {
+    document.getElementById('detail-view').classList.remove('active');
+    document.getElementById('list-view').style.display = 'block';
+    document.getElementById('fab-add').style.display = 'block';
+    currentNote = null;
+    loadNotes();
+  }
+
+  async function reviewNote() {
+    if (!currentNote) return;
+    const days = prompt('Review again in how many days?', '7');
+    if (days === null) return;
+    await api('/notes/' + currentNote.id + '/review?days=' + parseInt(days), { method: 'PATCH' });
+    showList();
+  }
+
+  async function deleteNote() {
+    if (!currentNote) return;
+    if (!confirm('Delete "' + currentNote.title + '"?')) return;
+    await api('/notes/' + currentNote.id, { method: 'DELETE' });
+    showList();
+  }
+
+  function editNote() {
+    if (!currentNote) return;
+    editingId = currentNote.id;
+    document.getElementById('modal-title').textContent = 'Edit Note';
+    document.getElementById('input-title').value = currentNote.title || '';
+    document.getElementById('input-tags').value = currentNote.tags || '';
+    document.getElementById('input-body').value = currentNote.body || '';
+    document.getElementById('input-days').value = '7';
+    document.getElementById('modal').classList.add('active');
+  }
+
+  function openModal() {
+    editingId = null;
+    document.getElementById('modal-title').textContent = 'New Note';
+    document.getElementById('input-title').value = '';
+    document.getElementById('input-tags').value = '';
+    document.getElementById('input-body').value = '';
+    document.getElementById('input-days').value = '7';
+    document.getElementById('modal').classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+  }
+
+  async function saveNote() {
+    const title = document.getElementById('input-title').value.trim();
+    if (!title) { alert('Title required'); return; }
+
+    const body = {
+      title: title,
+      tags: document.getElementById('input-tags').value.trim(),
+      body: document.getElementById('input-body').value,
+      review_days: parseInt(document.getElementById('input-days').value) || 7
+    };
+
+    if (editingId) {
+      await api('/notes/' + editingId, { method: 'PUT', body: JSON.stringify(body) });
+    } else {
+      await api('/notes', { method: 'POST', body: JSON.stringify(body) });
+    }
+
+    closeModal();
+    showList();
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  loadNotes();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js');
+  }
+</script>
+</body>
+</html>
