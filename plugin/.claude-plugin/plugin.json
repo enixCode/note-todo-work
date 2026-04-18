@@ -1,0 +1,7 @@
+{
+  "name": "notes-work-websites",
+  "description": "Save, find, edit, review, reorganize and integrate notes in a spaced-repetition notes API. Requires NOTES_API_URL and NOTES_API_TOKEN env vars to be set by the user.",
+  "version": "1.0.0",
+  "license": "MIT",
+  "keywords": ["notes", "markdown", "spaced-repetition", "review", "knowledge"]
+}

@@ -1,0 +1,53 @@
+{
+  "skill_name": "notes-work",
+  "evals": [
+    {
+      "id": 1,
+      "name": "save-note-casual",
+      "skill": "save-note",
+      "prompt": "save this to my notes: when chaining middlewares, order matters - auth must come before rate-limit. tag it routing, middleware.",
+      "expected_output": "POST /notes with title derived from content, body preserved, tags=routing,middleware. Reads .note.* from the wrapped response.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "find-notes-topic-search",
+      "skill": "find-notes",
+      "prompt": "go look in my notes, what did I write about routing?",
+      "expected_output": "GET /notes, iterate .notes[], client-side filter on keyword 'routing' across title/tags/body. Compact table output.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "reorganize-duplicate-detection",
+      "skill": "reorganize-notes",
+      "prompt": "clean up my notes - I think I have some duplicates and messy tags",
+      "expected_output": "GET /notes (.notes[]), analyse for duplicates, tag inconsistencies, stale entries. Present numbered plan. DO NOT write without user confirmation. On approved writes, use GET-merge-PUT pattern.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "integrate-with-current-file",
+      "skill": "integrate-notes",
+      "prompt": "I'm looking at the current file - integrate this with my existing notes, find what's related",
+      "expected_output": "Read file, extract keywords, GET /notes, rank top matches, propose integration actions. Confirm before writing. For note update use GET-merge-PUT. For new bridging note, POST inline (no delegation).",
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "review-pending-and-mark",
+      "skill": "review-notes",
+      "prompt": "what notes do I need to review today?",
+      "expected_output": "GET /notes/review/pending. Branch on .count first (handle {\"notes\": {}, \"count\": 0} empty case). Sort by most overdue. Never mark reviewed without explicit intent.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "edit-single-note",
+      "skill": "edit-note",
+      "prompt": "change the title of note abc-123 to 'Rate limiting patterns'",
+      "expected_output": "GET /notes/abc-123 first, merge new title into full payload, PUT back. Confirm with user before writing. Never partial PUT.",
+      "files": []
+    }
+  ]
+}
