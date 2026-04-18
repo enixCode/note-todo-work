@@ -58,6 +58,7 @@ All endpoints return JSON. When `API_KEY` is set in `.env`, pass it via `X-Api-K
 | `DELETE` | `/notes/:id` | Delete a note |
 | `PATCH` | `/notes/:id/review?days=N` | Mark reviewed, bump `next_review` by N days (default 7) |
 | `GET` | `/notes/review/pending` | Get all notes where `next_review <= today` |
+| `GET` | `/notes/search?q=&tag=&limit=` | Full-text search with ranking (phrase-in-title +5, term-in-title +3, term-in-tags +2, term-in-body +1 capped). Returns matches with a body snippet. `q` or `tag` required |
 
 ### Create a note
 

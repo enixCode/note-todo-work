@@ -230,6 +230,110 @@ function _M.review(id)
     json_response(200, { note = meta })
 end
 
+-- Helper: count plain-substring occurrences (case-sensitive, no Lua patterns)
+local function count_occ(s, needle)
+    if not s or not needle or needle == "" then return 0 end
+    local count, pos = 0, 1
+    while true do
+        local i = s:find(needle, pos, true)
+        if not i then return count end
+        count = count + 1
+        pos = i + #needle
+    end
+end
+
+-- GET /notes/search?q=<terms>&tag=<tag>&limit=N - full-text search with ranking
+function _M.search()
+    local args = ngx.req.get_uri_args()
+    local q = (args.q or ""):lower()
+    local tag_filter = args.tag and args.tag:lower() or nil
+    local limit = tonumber(args.limit) or 10
+
+    if q == "" and not tag_filter then
+        json_response(400, { error = "provide q or tag" })
+        return
+    end
+
+    local terms = {}
+    for term in q:gmatch("%S+") do
+        terms[#terms + 1] = term
+    end
+
+    local files = list_md_files()
+    local results = {}
+
+    for _, path in ipairs(files) do
+        local content = read_file(path)
+        if content then
+            local meta, body = frontmatter.parse(content)
+            local id = path:match("([^/]+)%.md$")
+            local tags_lower = (meta.tags or ""):lower()
+
+            local tag_ok = (not tag_filter) or (tags_lower:find(tag_filter, 1, true) ~= nil)
+
+            if tag_ok then
+                local title_lower = (meta.title or ""):lower()
+                local body_lower = (body or ""):lower()
+
+                local score = 0
+                local matches = { title = 0, tags = 0, body = 0 }
+
+                if #terms > 1 and title_lower:find(q, 1, true) then
+                    score = score + 5
+                end
+
+                for _, term in ipairs(terms) do
+                    local c_title = count_occ(title_lower, term)
+                    local c_tags  = count_occ(tags_lower, term)
+                    local c_body  = count_occ(body_lower, term)
+                    score = score + (3 * c_title) + (2 * c_tags) + math.min(c_body, 5)
+                    matches.title = matches.title + c_title
+                    matches.tags  = matches.tags + c_tags
+                    matches.body  = matches.body + c_body
+                end
+
+                local keep = score > 0 or (tag_filter and q == "")
+                if keep then
+                    local snippet = nil
+                    if terms[1] and body and #body > 0 then
+                        local pos = body_lower:find(terms[1], 1, true)
+                        if pos then
+                            local s = math.max(1, pos - 40)
+                            local e = math.min(#body, pos + #terms[1] + 40)
+                            snippet = body:sub(s, e)
+                            if s > 1 then snippet = "..." .. snippet end
+                            if e < #body then snippet = snippet .. "..." end
+                        end
+                    end
+
+                    results[#results + 1] = {
+                        id = id,
+                        title = meta.title,
+                        tags = meta.tags,
+                        score = score,
+                        matches = matches,
+                        snippet = snippet
+                    }
+                end
+            end
+        end
+    end
+
+    table.sort(results, function(a, b) return a.score > b.score end)
+
+    local limited = {}
+    for i = 1, math.min(limit, #results) do
+        limited[i] = results[i]
+    end
+
+    json_response(200, {
+        query = q,
+        tag = tag_filter,
+        count = #results,
+        results = limited
+    })
+end
+
 -- GET /notes/review/pending - get notes needing review
 function _M.pending()
     local files = list_md_files()
