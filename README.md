@@ -133,7 +133,42 @@ note-todo-work/
     sw.js                 # Service worker (network-first)
     icon.svg              # App icon
   data/                   # Volume mount for .md files
+  plugin/                 # Claude Code plugin (see below)
 ```
+
+## Claude Code plugin
+
+This repo also ships a Claude Code plugin under `plugin/`. It lets you drive the notes API conversationally from any Claude Code session: save, find, edit, review, reorganize, and cross-link notes using natural phrases.
+
+### Skills
+
+| Skill | Triggers on | What it does |
+|-------|-------------|--------------|
+| `save-note` | "save this", "note ca", "remember this" | Create a new note (POST /notes) |
+| `find-notes` | "search notes", "cherche dans mes notes", "what did I write about X" | List or retrieve notes (GET /notes, client-side keyword filter) |
+| `edit-note` | "rename note X", "fix the title of", "modifie la note" | Update a single note with the safe GET-merge-PUT pattern |
+| `reorganize-notes` | "clean up notes", "deduplicate", "range mes notes" | Bulk cleanup with a preview + confirmation loop |
+| `review-notes` | "what to review", "I reviewed X", "qu'est-ce que j'ai a reviser" | Drive the spaced-repetition queue (GET /pending, PATCH /review) |
+| `integrate-notes` | "integrate with", "link to my notes", "connect to my notes" | Match the current file/URL against the carnet and cross-reference both ways |
+
+### Install
+
+The plugin is distributed through a Claude Code marketplace that points at the `plugin/` subdirectory of this repo (using the `git-subdir` source type). After adding a marketplace that references this plugin:
+
+```shell
+/plugin install notes-work-websites@<your-marketplace>
+```
+
+### Required env vars
+
+The skills never hardcode URLs or tokens. Set these in your shell before using the plugin:
+
+```bash
+export NOTES_API_URL=https://your-notes-host.example.com
+export NOTES_API_TOKEN=your-bearer-token
+```
+
+The skills will refuse to run if either is missing.
 
 ## Tech stack
 
