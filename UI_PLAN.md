@@ -27,18 +27,14 @@ Suivi de la construction de l'interface. Source de vérité tant que l'UI est en
 
 **Critère Phase 1** : l'UI liste les projets, ouvre une note rendue, filtre par titre, et note une note due. `tsc --noEmit` et `next build` en exit 0.
 
-## Phase 2 - Vue 3D gamifiée
+## Phase 2 - Vue 3D gamifiée (ABANDONNÉE)
 
-- `react-three-fiber` + `@react-three/drei` (vérifier compat R3F 9 / React 19 / Next 15 avant).
-- Cubes / pixel art alimentés par `GET /review/due` : les choses à réaliser maintenant ou plus tard.
-- Sélection d'un item + action de révision depuis la scène 3D.
-
-**Critère Phase 2** : la scène 3D affiche les notes dues, on peut en sélectionner une et la noter.
+Construite (champ de cubes react-three-fiber) puis retirée le 2026-06-08 : jugée moche et inutile. Le coeur (Phase 1) suffit. Ne pas relancer de feature gadget : simple, fonctionnel, solide.
 
 ## Statut
 
 - [x] Phase 1 : scaffold Next 16.2 + shadcn (Tailwind v4), thème DA, client API, sidebar projets, viewer markdown + révision FSRS, recherche Ctrl+K. `tsc --noEmit` exit 0. Dev sur :3000.
-- [ ] Phase 2 : vue 3D gamifiée (react-three-fiber)
+- [~] Phase 2 (3D) : **abandonnée**. Champ de cubes construit puis retiré (jugé moche et inutile). On reste sur le coeur, qui suffit. Vraie priorité future = recherche par embedding (voir TODO.md).
 
 ### Notes
 - Warning Turbopack "multiple lockfiles" (racine API + web/) : bénin, `.env.local` bien chargé. À silencer plus tard via `turbopack.root`.
