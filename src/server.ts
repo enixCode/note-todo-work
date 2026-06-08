@@ -13,6 +13,19 @@ app.use('*', logger(), cors());
 app.get('/health', (c) => c.json({ ok: true }));
 app.get('/llms.txt', (c) => c.text(llmsTxt));
 
+app.get('/', (c) =>
+  c.html(
+    `<!doctype html><meta charset="utf-8"><title>brainstorm-vault</title>
+<h1>brainstorm-vault</h1>
+<p>API REST de notes brainstorm en Markdown, avec révision espacée FSRS.</p>
+<ul>
+  <li><a href="/llms.txt">/llms.txt</a> — documentation complète de l'API</li>
+  <li><a href="/health">/health</a> — santé du service</li>
+  <li><a href="/projects">/projects</a> — liste des projets (JSON)</li>
+</ul>`,
+  ),
+);
+
 // --- Projects ---
 app.get('/projects', async (c) => c.json(await repo.listProjects()));
 

@@ -80,6 +80,7 @@ GET /review/due
 
 ### Utilitaire
 
+GET / → page d'accueil HTML (liens vers la doc)
 GET /health → { ok: true }
 GET /llms.txt → ce document
 

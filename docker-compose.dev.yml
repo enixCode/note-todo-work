@@ -1,5 +1,5 @@
 services:
-  app:
+  notes-api:
     ports:
       - "8090:8080"
   minio:

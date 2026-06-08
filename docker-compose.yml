@@ -9,6 +9,8 @@ services:
       - minio-data:/data
     expose:
       - "9000"
+    networks:
+      - notes-internal
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 5s
@@ -17,6 +19,8 @@ services:
 
   createbuckets:
     image: minio/mc
+    networks:
+      - notes-internal
     depends_on:
       minio:
         condition: service_healthy
@@ -26,7 +30,7 @@ services:
       mc mb local/brainstorm --ignore-existing
       "
 
-  app:
+  notes-api:
     build: .
     restart: unless-stopped
     depends_on:
@@ -40,6 +44,11 @@ services:
       MINIO_BUCKET: brainstorm
     expose:
       - "8080"
+    networks:
+      - notes-internal
 
 volumes:
   minio-data:
+
+networks:
+  notes-internal: {}
