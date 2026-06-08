@@ -1,0 +1,27 @@
+{
+  "name": "note-todo-work",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "API REST projects + notes brainstorm en Markdown, stockées dans MinIO, avec révision espacée FSRS.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.4",
+    "gray-matter": "^4.0.3",
+    "hono": "^4.12.23",
+    "minio": "^8.0.7",
+    "ts-fsrs": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
+  }
+}

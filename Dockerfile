@@ -1,11 +1,24 @@
-FROM openresty/openresty:alpine
+# --- deps ---
+FROM node:22-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
 
-COPY nginx/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
-COPY lua/ /app/lua/
-COPY static/ /app/static/
+# --- build ---
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY package*.json tsconfig.json ./
+COPY src ./src
+RUN npm run build && npm prune --omit=dev
 
-RUN mkdir -p /data && chmod 777 /data
-
+# --- runtime ---
+FROM node:22-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY package*.json ./
+COPY llms.txt ./
 EXPOSE 8080
-
-CMD ["openresty", "-g", "daemon off;"]
+CMD ["node", "dist/server.js"]

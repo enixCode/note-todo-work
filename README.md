@@ -1,183 +1,180 @@
-# note-todo-work
+# brainstorm-vault
 
-A Docker-based spaced repetition system for markdown notes. Store `.md` files with review metadata, get notified when notes are due for review.
+**v0.2.0** — API REST minimaliste pour organiser mes notes de brainstorm en Markdown, par projet, avec révision espacée FSRS.
 
-Built with OpenResty (Nginx + Lua) - single container, no dependencies.
+## Vision
 
-![Desktop - All Notes](screenshots/desktop-all.png)
+Je voulais un endroit où poser mes pensées, mes apprentissages, mes plans et mes challenges sans que ça devienne un second boulot de les maintenir. Pas d'UI compliquée, pas de base de données relationnelle, pas de schéma rigide : juste des fichiers `.md` dans des dossiers, exposés via une API, et un planificateur de révision qui me dit quoi revoir et quand.
 
-## Features
+Les cas d'usage concrets :
 
-- **CRUD API** for markdown notes with frontmatter metadata
-- **Spaced repetition** - each note tracks `last_review` and `next_review` dates
-- **Pending review endpoint** - get all notes due for review today
-- **Markdown rendering** - full GFM support in the PWA (headings, code blocks, tables, blockquotes)
-- **Mobile-first PWA** - installable, touch-optimized, works offline-ready
-- **API key auth** - optional, via `.env`
-- **File-based storage** - notes are plain `.md` files in a Docker volume
-- **No database** - just Nginx + Lua + filesystem
+- **Connaissances** : synthèses de ce que j'ai appris (reverse, web, crypto, réseau, dev)
+- **Labs** : notes sur les labs que je dois créer ou que j'ai créés
+- **Challenges** : root-me, CTF, HackTheBox, un projet par plateforme ou par catégorie
+- **Problèmes ouverts** : trucs pas encore résolus, idées à creuser, blocages à lever
+- **Recherches** : brainstorm avant une implémentation, comparaisons de solutions
 
-## Screenshots
+Chaque note est un fichier `.md` brut avec frontmatter. Un project est un dossier. Tout est stocké dans MinIO (objet S3-compatible, self-hosted). Quand je veux ancrer une note en mémoire, je l'enrôle dans la révision espacée : l'algorithme FSRS planifie les rappels.
 
-<p align="center">
-  <img src="screenshots/mobile-pending.png" width="230" alt="Mobile - Pending">
-  <img src="screenshots/mobile-detail.png" width="230" alt="Mobile - Detail">
-  <img src="screenshots/mobile-create.png" width="230" alt="Mobile - Create">
-</p>
-
-<p align="center">
-  <img src="screenshots/desktop-detail.png" width="600" alt="Desktop - Detail View">
-</p>
-
-## Quick Start
+## Démarrage rapide
 
 ```bash
-# Clone
-git clone https://github.com/enixCode/note-todo-work.git
-cd note-todo-work
+# dev local (Node, hot reload) — nécessite un MinIO joignable
+cp .env.example .env   # remplir les vars MinIO
+npm install
+npm run dev            # http://localhost:8080
 
-# Copy env file
-cp .env.example .env
+# dev Docker (MinIO inclus, console sur :9001)
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# API : http://localhost:8090
+# MinIO console : http://localhost:9001  (minioadmin / minioadmin)
 
-# Run (local dev with port binding)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build -d
-
-# Open http://localhost:8090
-```
-
-## API
-
-All endpoints return JSON. When `API_KEY` is set in `.env`, pass it via `X-Api-Key` header or `?api_key=` query param.
-
-| Method | Route | Description |
-|--------|-------|-------------|
-| `GET` | `/notes` | List all notes (metadata only) |
-| `GET` | `/notes/:id` | Get a single note (metadata + rendered body) |
-| `POST` | `/notes` | Create a note |
-| `PUT` | `/notes/:id` | Update a note |
-| `DELETE` | `/notes/:id` | Delete a note |
-| `PATCH` | `/notes/:id/review?days=N` | Mark reviewed, bump `next_review` by N days (default 7) |
-| `GET` | `/notes/review/pending` | Get all notes where `next_review <= today` |
-| `GET` | `/notes/search?q=&tag=&limit=` | Full-text search with ranking (phrase-in-title +5, term-in-title +3, term-in-tags +2, term-in-body +1 capped). Returns matches with a body snippet. `q` or `tag` required |
-
-### Create a note
-
-```bash
-curl -X POST http://localhost:8090/notes \
-  -H "Content-Type: application/json" \
-  -d '{"title": "My Note", "body": "# Hello\nSome content.", "tags": "tag1,tag2", "review_days": 7}'
-```
-
-### Mark as reviewed
-
-```bash
-curl -X PATCH "http://localhost:8090/notes/my-note/review?days=14"
-```
-
-### Get pending reviews
-
-```bash
-curl http://localhost:8090/notes/review/pending
-```
-
-## Note format
-
-Notes are stored as `.md` files with YAML frontmatter:
-
-```markdown
----
-title: My Note
-created: 2026-04-13
-last_review: 2026-04-13
-next_review: 2026-04-20
-tags: docker,lua
----
-
-# Content here
-Your markdown content...
+# prod (port non publié, derrière un reverse proxy)
+docker compose up --build -d
 ```
 
 ## Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `API_KEY` | _(empty)_ | API key for auth. Empty = open access |
+| Variable | Par défaut | Description |
+|---|---|---|
+| `PORT` | `8080` | Port HTTP |
+| `MINIO_ENDPOINT` | `http://localhost:9000` | URL du serveur MinIO (host, port et SSL déduits) |
+| `MINIO_ACCESS_KEY` | | Clé d'accès |
+| `MINIO_SECRET_KEY` | | Clé secrète |
+| `MINIO_BUCKET` | | Nom du bucket (obligatoire) |
 
-## Deploy
+## API
 
-The `docker-compose.yml` is clean (no port bindings, no Traefik labels) - ready for reverse proxy setups like Traefik, Nginx, or Caddy.
+Toutes les réponses sont en JSON.
+
+### Projects
+
+| Méthode | Route | Description |
+|---|---|---|
+| `GET` | `/projects` | Lister tous les projets |
+| `POST` | `/projects` | Créer un projet. Body : `{ name }` |
+| `DELETE` | `/projects/:id` | Supprimer un projet et toutes ses notes |
+
+### Notes
+
+| Méthode | Route | Description |
+|---|---|---|
+| `GET` | `/projects/:id/notes` | Lister les notes d'un projet (sans le body) |
+| `POST` | `/projects/:id/notes` | Créer une note. Body : `{ title, body? }` |
+| `GET` | `/projects/:id/notes/:noteId` | Lire une note complète |
+| `PUT` | `/projects/:id/notes/:noteId` | Modifier. Body : `{ title?, body? }` |
+| `DELETE` | `/projects/:id/notes/:noteId` | Supprimer une note |
+
+### Révision
+
+| Méthode | Route | Description |
+|---|---|---|
+| `POST` | `/projects/:id/notes/:noteId/review` | Noter une révision. Body : `{ rating }` (1=Again, 2=Hard, 3=Good, 4=Easy). Enrôle la note à la première note. |
+| `GET` | `/review/due` | Notes dues maintenant, tous projets. `?before=<ISO>` pour une autre échéance. |
+
+### Exemples
 
 ```bash
-# Production
-docker compose up --build -d
+# créer un projet
+curl -X POST http://localhost:8090/projects \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"root-me"}'
+
+# ajouter une note brainstorm
+curl -X POST http://localhost:8090/projects/root-me/notes \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"XSS stocké niveau avancé","body":"## Vecteurs\n- innerHTML"}'
+
+# noter une révision (Good)
+curl -X POST http://localhost:8090/projects/root-me/notes/xss-stocke-niveau-avance/review \
+  -H 'Content-Type: application/json' \
+  -d '{"rating":3}'
+
+# voir ce qui est à réviser
+curl http://localhost:8090/review/due
 ```
 
-The container exposes port `8080` internally. Mount a reverse proxy in front, or use `docker-compose.dev.yml` for local development with port `8090`.
+## Format des fichiers
+
+Une note fraîche est un `.md` avec un frontmatter minimal :
+
+```
+---
+title: Mon brainstorm
+created_at: 2026-06-07T12:00:00.000Z
+updated_at: 2026-06-07T12:00:00.000Z
+---
+
+Contenu markdown libre ici.
+```
+
+Une fois enrôlée dans la révision (première note), un bloc `fsrs` apparaît :
+
+```
+---
+title: XSS stocké
+created_at: 2026-06-07T12:00:00.000Z
+updated_at: 2026-06-08T06:39:55.253Z
+fsrs:
+  due: 2026-06-08T06:49:55.251Z
+  stability: 2.3065
+  difficulty: 2.1181
+  scheduled_days: 0
+  learning_steps: 1
+  reps: 1
+  lapses: 0
+  state: 1
+  last_review: 2026-06-08T06:39:55.251Z
+---
+
+Contenu markdown libre ici.
+```
+
+Les projets sont des "dossiers" virtuels dans le bucket :
+
+```
+projects/<slug>/meta.json
+projects/<slug>/notes/<slug>.md
+```
+
+## Révision espacée (FSRS)
+
+La planification utilise FSRS (Free Spaced Repetition Scheduler) via le package `ts-fsrs`, paramètres par défaut. C'est l'algorithme natif d'Anki depuis 23.10, entraîné sur ~1,7 milliard de révisions réelles.
+
+États d'une carte : `New → Learning → Review ↔ Relearning`. Étapes d'apprentissage par défaut : 1 min puis 10 min, ensuite intervalles en jours.
+
+Intervalles réellement observés (paramètres par défaut, révision faite pile à l'échéance) :
+
+- Carte neuve : `Again → +1 min`, `Hard → +6 min`, `Good → +10 min`, `Easy → +8 jours`
+- Toujours `Good` : `10 min → 2 j → 11 j → 46 j → 163 j → 498 j`
+- Toujours `Easy` : `8 j → 66 j → 397 j → 1875 j`
+- `Again` en Review : retour en Relearning `+10 min`, puis l'intervalle repart réduit
+
+Ces valeurs découlent de `stability`/`difficulty`, pas d'un barème codé en dur : elles varient selon l'historique de chaque carte. Une note jamais notée n'a pas de carte et n'apparaît pas dans `/review/due`.
 
 ## Architecture
 
 ```
-note-todo-work/
-  Dockerfile              # OpenResty Alpine
-  docker-compose.yml      # Production (no ports)
-  docker-compose.dev.yml  # Dev override (port 8090)
-  .env.example            # Environment template
-  nginx/
-    nginx.conf            # Routes + static files + Lua handlers
-  lua/
-    auth.lua              # API key check
-    frontmatter.lua       # Parse/serialize YAML frontmatter
-    notes.lua             # CRUD + review logic
-  static/
-    index.html            # Mobile-first PWA
-    manifest.json         # PWA manifest
-    sw.js                 # Service worker (network-first)
-    icon.svg              # App icon
-  data/                   # Volume mount for .md files
-  plugin/                 # Claude Code plugin (see below)
+src/
+  storage.ts   client MinIO + helpers (get/put/delete/list)
+  repo.ts      CRUD Project + Note, slugify, frontmatter (gray-matter), FSRS (ts-fsrs)
+  server.ts    routes Hono
+Dockerfile
+docker-compose.yml       stack complète avec MinIO
+docker-compose.dev.yml   ports publiés pour le dev
 ```
 
-## Claude Code plugin
+## Stack
 
-This repo also ships a Claude Code plugin under `plugin/`. It lets you drive the notes API conversationally from any Claude Code session: save, find, edit, review, reorganize, and cross-link notes using natural phrases.
+- Node 22 + TypeScript
+- Hono + @hono/node-server
+- minio (client objet S3-compatible)
+- gray-matter (frontmatter Markdown)
+- ts-fsrs (révision espacée)
 
-### Skills
+## Pas d'auth
 
-| Skill | Triggers on | What it does |
-|-------|-------------|--------------|
-| `save-note` | "save this", "note ca", "remember this" | Create a new note (POST /notes) |
-| `find-notes` | "search notes", "cherche dans mes notes", "what did I write about X" | List or retrieve notes (GET /notes, client-side keyword filter) |
-| `edit-note` | "rename note X", "fix the title of", "modifie la note" | Update a single note with the safe GET-merge-PUT pattern |
-| `reorganize-notes` | "clean up notes", "deduplicate", "range mes notes" | Bulk cleanup with a preview + confirmation loop |
-| `review-notes` | "what to review", "I reviewed X", "qu'est-ce que j'ai a reviser" | Drive the spaced-repetition queue (GET /pending, PATCH /review) |
-| `integrate-notes` | "integrate with", "link to my notes", "connect to my notes" | Match the current file/URL against the carnet and cross-reference both ways |
-
-### Install
-
-The plugin is distributed through a Claude Code marketplace that points at the `plugin/` subdirectory of this repo (using the `git-subdir` source type). After adding a marketplace that references this plugin:
-
-```shell
-/plugin install notes-work-websites@<your-marketplace>
-```
-
-### Required env vars
-
-The skills never hardcode URLs or tokens. Set these in your shell before using the plugin:
-
-```bash
-export NOTES_API_URL=https://your-notes-host.example.com
-export NOTES_API_TOKEN=your-bearer-token
-```
-
-The skills will refuse to run if either is missing.
-
-## Tech stack
-
-- **OpenResty** (Nginx + LuaJIT) - serves API and PWA from a single container
-- **Lua** - frontmatter parsing, CRUD, review logic
-- **marked.js** - client-side markdown rendering
-- **Playfair Display** - editorial serif typography
-- **Docker** - single container, ~60MB image
+Aucune couche d'authentification. Mettre derrière un reverse proxy, un VPN, ou un réseau privé.
 
 ## License
 

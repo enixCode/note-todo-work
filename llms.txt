@@ -1,0 +1,133 @@
+# brainstorm-vault — LLM interface
+
+API REST pour gérer des notes de brainstorm en Markdown, organisées par projets, avec révision espacée FSRS (Free Spaced Repetition Scheduler).
+
+Base URL : http://localhost:8080 (dev Docker : http://localhost:8090)
+
+## Modèle de données
+
+**Project** : un domaine de connaissance (ex: root-me, reverse, cryptographie, labs)
+- id (slug), name, created_at
+
+**Note** : un fichier Markdown dans un projet — brainstorm, synthèse, challenge, problème ouvert
+
+Champs toujours présents :
+- id (slug), project_id, title, body (markdown), created_at, updated_at
+
+Champs de révision (absents tant que la note n'a jamais été soumise à /review) :
+- due_at   ISO datetime de la prochaine révision (miroir de review.due). Absent = note hors queue de révision.
+- review   Objet carte FSRS :
+    state           "New" | "Learning" | "Review" | "Relearning"
+                      New        = enrôlée mais jamais notée
+                      Learning   = phase d'apprentissage (intervalles en minutes)
+                      Review     = carte graduée (intervalles en jours)
+                      Relearning = carte oubliée en Review, repasse par les minutes
+    due             ISO datetime de la prochaine révision
+    stability       jours estimés avant que la rétention tombe à 90 % (croît avec les bonnes notes)
+    difficulty      difficulté intrinsèque 1..10 (monte avec Again/Hard, descend avec Easy)
+    scheduled_days  intervalle planifié en jours (0 pendant Learning)
+    learning_steps  index de l'étape courante en phase Learning/Relearning
+    reps            nombre de révisions cumulées
+    lapses          nombre d'oublis (Again en Review)
+    last_review     ISO datetime de la dernière révision
+
+## Endpoints
+
+### Projects
+
+GET /projects
+→ liste tous les projets
+
+POST /projects
+body: { "name": "root-me" }
+→ crée un projet, retourne le projet créé (201)
+
+DELETE /projects/:id
+→ supprime le projet et toutes ses notes (204)
+
+### Notes
+
+GET /projects/:id/notes
+→ liste les notes d'un projet (sans body)
+
+POST /projects/:id/notes
+body: { "title": "XSS stocké", "body": "## Ce que j'ai appris\n..." }
+→ crée une note, retourne la note créée (201)
+
+GET /projects/:id/notes/:noteId
+→ retourne la note complète (title + body + champs de révision)
+
+PUT /projects/:id/notes/:noteId
+body: { "title"?: "...", "body"?: "..." }
+→ met à jour titre et/ou contenu (la carte de révision est préservée)
+
+DELETE /projects/:id/notes/:noteId
+→ supprime la note (204)
+
+### Révision espacée
+
+POST /projects/:id/notes/:noteId/review
+body: { "rating": 1|2|3|4 }
+  1 = Again (oublié)
+  2 = Hard  (difficile)
+  3 = Good  (correct)
+  4 = Easy  (évident)
+→ applique FSRS, retourne la note mise à jour avec le nouveau due_at et l'objet review
+
+GET /review/due
+→ toutes les notes dont due_at <= maintenant, tous projets confondus
+?before=<ISO datetime> pour récupérer les notes dues avant une date donnée
+
+### Utilitaire
+
+GET /health → { ok: true }
+GET /llms.txt → ce document
+
+## Algorithme FSRS
+
+FSRS modélise la mémoire via stability (durée de rétention) et difficulty (1..10), entraîné sur ~1,7 milliard de révisions Anki réelles. C'est l'algorithme natif d'Anki depuis 23.10. Implémentation : package `ts-fsrs`, paramètres par défaut.
+
+États : New → Learning → Review ↔ Relearning
+Étapes d'apprentissage par défaut : 1 min puis 10 min.
+
+Intervalles RÉELLEMENT observés avec les paramètres par défaut (révision faite pile à l'échéance) :
+
+  Depuis une carte neuve :
+    Again → Learning, +1 min
+    Hard  → Learning, +6 min
+    Good  → Learning, +10 min
+    Easy  → Review,   +8 jours (graduation immédiate)
+
+  En notant toujours Good :
+    +10 min → +2 j → +11 j → +46 j → +163 j → +498 j
+
+  En notant toujours Easy :
+    +8 j → +66 j → +397 j → +1875 j
+
+  Oubli en Review (Again) → Relearning +10 min, puis l'intervalle repart réduit
+  (ex: une carte à +11 j repasse par +10 min puis +2 j → +5 j).
+
+Ces valeurs ne sont pas un barème codé en dur : elles découlent de stability/difficulty/params. Elles varient selon l'historique de chaque carte.
+
+## Flux typique
+
+1. Créer un projet pour un domaine
+   POST /projects  { "name": "web-security" }
+
+2. Ajouter une note après avoir appris/résolu quelque chose
+   POST /projects/web-security/notes  { "title": "SSRF interne", "body": "..." }
+
+3. Lancer une session de révision
+   GET /review/due
+   → pour chaque note retournée, afficher le body, demander un rating, POST .../review
+
+4. Mettre à jour une note avec de nouvelles découvertes
+   PUT /projects/web-security/notes/ssrf-interne  { "body": "..." }
+
+## Notes sur l'utilisation
+
+- Une note fraîchement créée n'a pas de carte de révision : c'est du brainstorm pur, absent de /review/due.
+- La première POST .../review enrôle la note dans la révision espacée (création de la carte FSRS).
+- due_at est un ISO datetime complet (pas seulement une date) pour supporter les intervalles en minutes.
+- body est du Markdown libre, aucune contrainte de format (question/réponse, synthèse, dump, etc.).
+- Les slugs sont générés automatiquement depuis le title/name (minuscules, sans accents, tirets).
