@@ -1,10 +1,10 @@
 # brainstorm-vault
 
-**v0.2.0** — API REST minimaliste pour organiser mes notes de brainstorm en Markdown, par projet, avec révision espacée FSRS.
+**v0.2.0** — API REST + UI web minimaliste pour organiser mes notes de brainstorm en Markdown, par projet, avec révision espacée FSRS.
 
 ## Vision
 
-Je voulais un endroit où poser mes pensées, mes apprentissages, mes plans et mes challenges sans que ça devienne un second boulot de les maintenir. Pas d'UI compliquée, pas de base de données relationnelle, pas de schéma rigide : juste des fichiers `.md` dans des dossiers, exposés via une API, et un planificateur de révision qui me dit quoi revoir et quand.
+Je voulais un endroit où poser mes pensées, mes apprentissages, mes plans et mes challenges sans que ça devienne un second boulot de les maintenir. Pas de base de données relationnelle, pas de schéma rigide : juste des fichiers `.md` dans des dossiers, exposés via une API, une UI web volontairement légère par-dessus, et un planificateur de révision qui me dit quoi revoir et quand.
 
 Les cas d'usage concrets :
 
@@ -15,6 +15,27 @@ Les cas d'usage concrets :
 - **Recherches** : brainstorm avant une implémentation, comparaisons de solutions
 
 Chaque note est un fichier `.md` brut avec frontmatter. Un project est un dossier. Tout est stocké dans MinIO (objet S3-compatible, self-hosted). Quand je veux ancrer une note en mémoire, je l'enrôle dans la révision espacée : l'algorithme FSRS planifie les rappels.
+
+## Fonctionnalités
+
+**Actuelles :**
+
+- CRUD projets + notes via API REST (Hono) ; notes en Markdown brut avec frontmatter
+- Révision espacée FSRS (`ts-fsrs`) : enrôlement à la première note, échéances calculées par carte
+- Stockage objet MinIO (S3-compatible, self-hosted), aucune base relationnelle
+- UI web (Next.js + shadcn/ui, thème DA enixCode) : sidebar des projets, lecture des notes en Markdown rendu, recherche par titre (Ctrl+K) sur tout le vault, notation de révision (Again / Hard / Good / Easy)
+- Docker Compose : stack complète (API + MinIO) en une commande
+
+**Prochaines étapes :**
+
+- Déploiement sur serveur perso via Ansible derrière Traefik, avec un workflow GitHub Actions qui redéploie sur push
+- Auth de l'UI au niveau du reverse proxy (OAuth), token Bearer pour l'accès machine à l'API
+- Création et édition de notes depuis l'UI (aujourd'hui : lecture + révision uniquement)
+
+**À terme :**
+
+- Recherche sémantique par embedding : retrouver une note par le sens, pas seulement par mot-clé
+- Vues et filtres UI par échéance et état FSRS, à réviser aujourd'hui, en retard, etc. (le moteur `/review/due` existe déjà côté API)
 
 ## Démarrage rapide
 
@@ -31,6 +52,13 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 # prod (port non publié, derrière un reverse proxy)
 docker compose up --build -d
+```
+
+```bash
+# UI web (dev) — pointe sur l'API ci-dessus via NEXT_PUBLIC_API_URL (défaut http://localhost:8090)
+cd web
+npm install
+npm run dev            # http://localhost:3000
 ```
 
 ## Configuration
@@ -159,6 +187,10 @@ src/
   storage.ts   client MinIO + helpers (get/put/delete/list)
   repo.ts      CRUD Project + Note, slugify, frontmatter (gray-matter), FSRS (ts-fsrs)
   server.ts    routes Hono
+web/           UI Next.js (App Router) : sidebar, viewer markdown, recherche, révision
+  app/         pages, layout, thème DA
+  components/  app-sidebar, note-detail, search-command + shadcn/ui
+  lib/api.ts   client typé de l'API
 Dockerfile
 docker-compose.yml       stack complète avec MinIO
 docker-compose.dev.yml   ports publiés pour le dev
@@ -171,6 +203,12 @@ docker-compose.dev.yml   ports publiés pour le dev
 - minio (client objet S3-compatible)
 - gray-matter (frontmatter Markdown)
 - ts-fsrs (révision espacée)
+
+Front (`web/`) :
+
+- Next.js 16 (App Router) + React 19 + TypeScript
+- shadcn/ui + Tailwind v4, thème DA enixCode
+- react-markdown (rendu des notes)
 
 ## Pas d'auth
 
