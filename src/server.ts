@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { logger } from 'hono/logger';
 import { cors } from 'hono/cors';
 import { readFileSync } from 'node:fs';
@@ -12,19 +13,6 @@ app.use('*', logger(), cors());
 
 app.get('/health', (c) => c.json({ ok: true }));
 app.get('/llms.txt', (c) => c.text(llmsTxt));
-
-app.get('/', (c) =>
-  c.html(
-    `<!doctype html><meta charset="utf-8"><title>brainstorm-vault</title>
-<h1>brainstorm-vault</h1>
-<p>API REST de notes brainstorm en Markdown, avec révision espacée FSRS.</p>
-<ul>
-  <li><a href="/llms.txt">/llms.txt</a> — documentation complète de l'API</li>
-  <li><a href="/health">/health</a> — santé du service</li>
-  <li><a href="/projects">/projects</a> — liste des projets (JSON)</li>
-</ul>`,
-  ),
-);
 
 // --- Projects ---
 app.get('/projects', async (c) => c.json(await repo.listProjects()));
@@ -88,6 +76,12 @@ app.get('/review/due', async (c) => {
   const { before } = c.req.query();
   return c.json(await repo.listDueNotes(before));
 });
+
+// --- UI statique ---
+// Build Next.js exporte, copie dans ./public par le Dockerfile. Les routes API
+// ci-dessus restent prioritaires ; en dev ./public n'existe pas (UI sur :3000).
+app.use('/*', serveStatic({ root: './public' }));
+app.get('*', serveStatic({ path: './public/index.html' }));
 
 const port = Number(process.env.PORT ?? 8080);
 serve({ fetch: app.fetch, port }, (info) => console.log(`listening on http://localhost:${info.port}`));

@@ -1,5 +1,7 @@
 // Client de l'API brainstorm-vault (Hono). Voir llms.txt a la racine du repo.
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8090";
+// Defaut "" = meme origine (prod : l'UI est servie par le serveur Hono).
+// En dev, .env.local force http://localhost:8090 (UI sur :3000, API sur :8090).
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export type Project = {
   id: string;
